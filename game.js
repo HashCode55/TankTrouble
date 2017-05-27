@@ -17,7 +17,7 @@ io.on('connection', function(socket){
 	console.log('Someone connected to us with socket id '+socket.id);
 
 	// callback when a new tank is connected
-	socket.on('newTank', function(data){
+	socket.on('new tank', function(data){
 		newTank(data, socket);
 	});
 
@@ -47,9 +47,10 @@ function updateTanks (data, socket) {
 	// update the location on the server 
 	toUpdate.setX(data.x);
 	toUpdate.setY(data.y);
-
+	toUpdate.setAngle(data.angle);
 	// broadcast the updated location 
-	socket.broadcast.emit('update location', {id: toUpdate.id, x: toUpdate.getX(), y: toUpdate.getY()});
+	socket.broadcast.emit('update location', {id: toUpdate.id, x: toUpdate.getX(), 
+		y: toUpdate.getY(), angle: toUpdate.getAngle()});
 	// console.log(toUpdate.x + " " + toUpdate.y);
 }
 
@@ -58,16 +59,18 @@ function newTank (data, socket) {
 	Creates a new Tank and adds on the server with its 
 	housekeeping variables		 	
 	*/
-	var tank = new Tank(data.x, data.y); 
+	var tank = new Tank(data.x, data.y, data.angle); 
 	tank.id = socket.id;
 
 	// bradcast the addition of the tank (send data to all except the one with 
 	// whom the connection is established)
-	socket.broadcast.emit('new tank', {id: tank.id, x: tank.getX(), y: tank.getY()});
+	socket.broadcast.emit('new tank', {id: tank.id, x: tank.getX(), y: tank.getY(), 
+		angle: tank.getAngle()});
 
 	// send details of existing tanks to the connected client only 
 	for (var i = 0; i < tanks.length; i++) {
-		socket.emit('new tank', {id: tanks[i].id, x: tanks[i].getX(), y: tanks[i].getY()});
+		socket.emit('new tank', {id: tanks[i].id, x: tanks[i].getX(), 
+			y: tanks[i].getY(), angle: tanks[i].getAngle()});
 	}
 
 	// Add the tank to the globals 

@@ -3,20 +3,25 @@
 // TODO:
 // nodejs integration 
 
-// insert in the default body for now 
+// main game 
 var game = new Phaser.Game(800, 640, Phaser.AUTO, "game", {preload: preload, 
 	create: create, update: update});
 
+// keys
 var cursors;
-var tank;
 var spaceKey;
+
+// the player, bullets, enemies 
+var tank;
 var bullets;
 var bullet;
 var bulletTime = 0;
+var enemies = [];
 
+// main map 
 var map;
-var rectangles;
 
+// text 
 var gotext;
 
 // initialize the socket 
@@ -31,6 +36,7 @@ function preload () {
 	game.load.image('tank', 'assets/PNG/Tanks/tankBlack.png');
 	game.load.image('bullet', 'assets/PNG/Bullets/bulletBeige.png')
 	game.load.image('sand', 'assets/PNG/Environment/sand.png')
+	game.load.image('enemy', 'assets/PNG/Tanks/tankBlue.png')
 	game.load.tilemap('map', 'assets/map.json', null, Phaser.Tilemap.TILED_JSON)
 	game.load.image('gametiles', 'assets/buch-outdoor.png');
 }
@@ -54,10 +60,7 @@ function create () {
 	tank.body.immovable = true;
 	tank.body.bounce.y = 0.2;
 	tank.body.collideWorldBounds = true;
-
-	// create a new tank 
-	socket.emit('newTank', {x:tank.x, y:tank.y});
-
+	
 	// create bullets 
 	bullets = game.add.group();
     bullets.enableBody = true;
@@ -78,6 +81,12 @@ function create () {
     goText.font = 'Press Start 2P';
     goText.visible = false;
     goText.fixedToCamera = true;
+
+    // socket housekeeping 
+    // create a new tank 
+	socket.emit('new tank', {x:tank.x, y:tank.y, angle: tank.angle});
+	// set the event handlers 
+	socketEvents();
 }
 
 function update () {
@@ -86,6 +95,10 @@ function update () {
 	game.physics.arcade.collide(tank, blockingLayer);		
 	game.physics.arcade.collide(tank, bullets, killTank);
 
+	// update the enemies location 
+	// for (var i = 0; i < enemies.length; i++) {
+	// 	enemies[i].update();
+	// }
 	tank.body.velocity.x = 0;
 	tank.body.velocity.y = 0;
 
@@ -112,7 +125,7 @@ function update () {
 	}
 
 	// emit the updated location
-	socket.emit('update location', {x: tank.x, y: tank.y});
+	socket.emit('update location', {x: tank.x, y: tank.y, angle: tank.angle});
 
 	// get the location of other tanks
 }
@@ -150,6 +163,46 @@ function fireBullet () {
 	}
 }
 
+function socketEvents () {
+	socket.on('new tank', newTank);
+	socket.on('tank died', tankDelete);
+	socket.on('update location', tankUpdate);
+}
+
+function newTank (data) {	
+	var newTank = findTank(data.id);
+	if (newTank) {
+		console.log("Duplicate tank");
+		return;
+	}
+	// for debugging! 
+	console.log("New player " + data.id);
+	// TODO: Check for duplicate ID 
+	enemies.push(new Enemy(game, data.id, data.x, data.y, data.angle))
+}
+
+function tankDelete (data) {
+	var deleteTank = findTank(data.id);
+	if (!deleteTank) {
+		console.log("The tank doesn't exist");
+		return;
+	}
+	deleteTank.tank.kill();
+	enemies.splice(enemies.indexOf(deleteTank), 1);
+}
+
+function tankUpdate (data) {
+	var moveTank = findTank(data.id);
+	if (!moveTank) {
+		console.log('tank not found');
+		return;
+	}
+	// update the tank location
+	moveTank.tank.x = data.x;
+	moveTank.tank.y = data.y;
+	moveTank.tank.angle = data.angle;
+}
+
 // SOME HELPER FUNCTIONS 
 function resetBullet (bullet) {
     bullet.kill();    
@@ -157,4 +210,38 @@ function resetBullet (bullet) {
 
 function toRadians (angle) {
   return angle * (Math.PI / 180);
+}
+
+function findTank(id) {
+	for (var i = 0; i < enemies.length; i++) {
+		if (enemies[i].id == id) {
+			return enemies[i];
+		}	
+	}
+	return false;
+}
+
+////////////////
+// ENEM CLASS //
+////////////////
+
+var Enemy = function (game, id, x, y, angle) {	
+	this.id = id;
+	this.x = x;
+	this.y = y;
+	this.angle = angle;
+	// set the tank properties
+	this.tank = game.add.sprite(x, y, 'enemy');
+	this.tank.anchor.setTo(0.5, 0.5);
+	this.tank.scale.setTo(0.5, 0.5);
+	game.physics.arcade.enable(this.tank);	
+	this.tank.body.immovable = true;
+	this.tank.body.bounce.y = 0.2;
+	this.tank.body.collideWorldBounds = true;
+
+	var update = function (x, y, angle) {
+		this.tank.x = x;
+		this.tank.y = y;
+		this.tank.angle = angle;
+	};
 }
