@@ -1,7 +1,11 @@
 // GLOBAL variables 
 
 // TODO:
-// nodejs integration 
+// fix movement with physics on 
+// fix collision between tank objects 
+// bullets in multiplayer 
+// kill players based on bullets 
+// add sugar. Lots of sugar 
 
 // main game 
 var game = new Phaser.Game(800, 640, Phaser.AUTO, "game", {preload: preload, 
@@ -35,7 +39,6 @@ function preload () {
 	// load the assets 
 	game.load.image('tank', 'assets/PNG/Tanks/tankBlack.png');
 	game.load.image('bullet', 'assets/PNG/Bullets/bulletBeige.png')
-	game.load.image('sand', 'assets/PNG/Environment/sand.png')
 	game.load.image('enemy', 'assets/PNG/Tanks/tankBlue.png')
 	game.load.tilemap('map', 'assets/map.json', null, Phaser.Tilemap.TILED_JSON)
 	game.load.image('gametiles', 'assets/buch-outdoor.png');
@@ -53,12 +56,11 @@ function create () {
 	map.setCollisionBetween(1, 200, true, 'blockingLayer');
 
 	// give the tank object life 
-	tank = game.add.sprite(game.world.width/2, game.world.height/2, 'tank');		
+	tank = game.add.sprite(Math.random() * 800, Math.random() * 640, 'tank');		
 	tank.anchor.setTo(0.5, 0.5);
 	tank.scale.setTo(0.5, 0.5);
 	game.physics.arcade.enable(tank);	
 	tank.body.immovable = true;
-	tank.body.bounce.y = 0.2;
 	tank.body.collideWorldBounds = true;
 	
 	// create bullets 
@@ -94,11 +96,7 @@ function update () {
 	game.physics.arcade.collide(bullets, blockingLayer);
 	game.physics.arcade.collide(tank, blockingLayer);		
 	game.physics.arcade.collide(tank, bullets, killTank);
-
-	// update the enemies location 
-	// for (var i = 0; i < enemies.length; i++) {
-	// 	enemies[i].update();
-	// }
+	
 	tank.body.velocity.x = 0;
 	tank.body.velocity.y = 0;
 
@@ -110,10 +108,11 @@ function update () {
 		tank.rotation += 0.1;
 	} 
 
+
 	if (cursors.up.isDown) {	
-		tank.body.velocity.y = 200*Math.cos(tank.rotation);
-		tank.body.velocity.x = -200*Math.sin(tank.rotation);
-		
+			tank.body.velocity.y = 200*Math.cos(tank.rotation);
+			tank.body.velocity.x = -200*Math.sin(tank.rotation);
+		}
 	} 
 	else if (cursors.down.isDown) {
 		tank.body.velocity.y = -150*Math.cos(tank.rotation);
@@ -130,6 +129,9 @@ function update () {
 	// get the location of other tanks
 }
 
+function over(){
+	console.log('as')
+}
 function killTank () {
 	tank.kill();
 	bullets.destroy();
@@ -187,8 +189,9 @@ function tankDelete (data) {
 		console.log("The tank doesn't exist");
 		return;
 	}
-	deleteTank.tank.kill();
+	deleteTank.tankEnemy.kill();
 	enemies.splice(enemies.indexOf(deleteTank), 1);
+	console.log("Tank deleted.")
 }
 
 function tankUpdate (data) {
@@ -198,9 +201,9 @@ function tankUpdate (data) {
 		return;
 	}
 	// update the tank location
-	moveTank.tank.x = data.x;
-	moveTank.tank.y = data.y;
-	moveTank.tank.angle = data.angle;
+	moveTank.tankEnemy.x = data.x;
+	moveTank.tankEnemy.y = data.y;
+	moveTank.tankEnemy.angle = data.angle;
 }
 
 // SOME HELPER FUNCTIONS 
@@ -221,27 +224,26 @@ function findTank(id) {
 	return false;
 }
 
-////////////////
-// ENEM CLASS //
-////////////////
+function checkOverlap(spriteA, spriteB) {
+
+    var boundsA = spriteA.getBounds();
+    var boundsB = spriteB.getBounds();
+
+    return Phaser.Rectangle.intersects(boundsA, boundsB);
+
+}
+
+/////////////////
+// ENEMY CLASS //
+/////////////////
 
 var Enemy = function (game, id, x, y, angle) {	
 	this.id = id;
 	this.x = x;
 	this.y = y;
-	this.angle = angle;
-	// set the tank properties
-	this.tank = game.add.sprite(x, y, 'enemy');
-	this.tank.anchor.setTo(0.5, 0.5);
-	this.tank.scale.setTo(0.5, 0.5);
-	game.physics.arcade.enable(this.tank);	
-	this.tank.body.immovable = true;
-	this.tank.body.bounce.y = 0.2;
-	this.tank.body.collideWorldBounds = true;
 
-	var update = function (x, y, angle) {
-		this.tank.x = x;
-		this.tank.y = y;
-		this.tank.angle = angle;
-	};
+	this.tankEnemy = game.add.sprite(this.x, this.y, 'enemy');
+	this.tankEnemy.anchor.setTo(0.5, 0.5);
+	this.tankEnemy.scale.setTo(0.5, 0.5);
+	this.tankEnemy.angle = angle;
 }
