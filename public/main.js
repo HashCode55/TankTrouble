@@ -1,8 +1,6 @@
 // GLOBAL variables 
 
 // TODO:
-// fix movement with physics on 
-// fix collision between tank objects 
 // bullets in multiplayer 
 // kill players based on bullets 
 // add sugar. Lots of sugar 
@@ -21,7 +19,7 @@ var bullets;
 var bullet;
 var bulletTime = 0;
 var enemies = [];
-
+var enemybullets = [];
 // main map 
 var map;
 
@@ -97,6 +95,15 @@ function update () {
 	game.physics.arcade.collide(tank, blockingLayer);		
 	game.physics.arcade.collide(tank, bullets, killTank);
 	
+	// for(var i = 0; i < enemybullets.length; i++){
+	// 	game.physics.arcade.collide(enemybullets[i], blockingLayer);
+	// 	game.physics.arcade.collide(tank, enemybullets[i], killTank);
+	// 	for (var j = 0; j < enemies.length; j++) { 
+	// 		if (checkOverlap(enemybullets[i], enemies[i].tankEnemy)){
+	// 			enemyKill(enemybullets[i], enemies[i].tankEnemy);
+	// 		}
+	// 	}
+	// }
 	tank.body.velocity.x = 0;
 	tank.body.velocity.y = 0;
 
@@ -108,11 +115,9 @@ function update () {
 		tank.rotation += 0.1;
 	} 
 
-
 	if (cursors.up.isDown) {	
-			tank.body.velocity.y = 200*Math.cos(tank.rotation);
-			tank.body.velocity.x = -200*Math.sin(tank.rotation);
-		}
+		tank.body.velocity.y = 200*Math.cos(tank.rotation);
+		tank.body.velocity.x = -200*Math.sin(tank.rotation);		
 	} 
 	else if (cursors.down.isDown) {
 		tank.body.velocity.y = -150*Math.cos(tank.rotation);
@@ -124,7 +129,8 @@ function update () {
 	}
 
 	// emit the updated location
-	socket.emit('update location', {x: tank.x, y: tank.y, angle: tank.angle});
+	socket.emit('update location', {x: tank.body.position.x, y: tank.body.position.y, velx: tank.body.velocity.x,
+		vely: tank.body.velocity.y, angle: tank.angle, rot: tank.rotation});
 
 	// get the location of other tanks
 }
@@ -139,6 +145,10 @@ function killTank () {
     goText.visible = true;
 }
 
+function enemyKill (one, two) {
+	one.kill();
+	two.kill();
+}
 function fireBullet () {
 	if (game.time.now > bulletTime) {
 		bullet = bullets.getFirstExists(false);
@@ -161,6 +171,8 @@ function fireBullet () {
 			// This is another method 
 			// timer.add(1000, resetBullet, this);
             // timer.start();
+            socket.emit('bullet', {x: bullet.x, y: bullet.y, 
+            	velx: bullet.body.velocity.x, vely: bullet.body.velocity.y});
 		}
 	}
 }
@@ -169,6 +181,7 @@ function socketEvents () {
 	socket.on('new tank', newTank);
 	socket.on('tank died', tankDelete);
 	socket.on('update location', tankUpdate);
+	socket.on('bullet', bulletFired);
 }
 
 function newTank (data) {	
@@ -201,11 +214,29 @@ function tankUpdate (data) {
 		return;
 	}
 	// update the tank location
-	moveTank.tankEnemy.x = data.x;
-	moveTank.tankEnemy.y = data.y;
-	moveTank.tankEnemy.angle = data.angle;
+	//moveTank.tankEnemy.x = data.x;
+	//moveTank.tankEnemy.y = data.y;
+	// moveTank.tankEnemy.angle = data.angle;
+	moveTank.tankEnemy.body.position.x = data.x;
+	moveTank.tankEnemy.body.position.y = data.y;
+	moveTank.tankEnemy.body.velocity.x = data.velx;
+	moveTank.tankEnemy.body.velocity.y = data.vely;
+	moveTank.tankEnemy.rotation = data.rot;
+
 }
 
+function bulletFired (data) {
+	console.log('bullet fired');
+	var bul = game.add.sprite(data.x, data.y, 'bullet');
+	bul.scale.setTo(0.5, 0.5);
+	game.physics.arcade.enable(bul);	
+	bul.body.bounce.x = 1;
+	bul.body.bounce.y = 1;	
+	bul.body.velocity.x = data.velx;
+	bul.body.velocity.y = data.vely;
+	enemybullets.push(bul);
+	console.log(bul.body.velocity.x  + ' ' + bul.body.velocity.y) ;
+}
 // SOME HELPER FUNCTIONS 
 function resetBullet (bullet) {
     bullet.kill();    
@@ -245,5 +276,8 @@ var Enemy = function (game, id, x, y, angle) {
 	this.tankEnemy = game.add.sprite(this.x, this.y, 'enemy');
 	this.tankEnemy.anchor.setTo(0.5, 0.5);
 	this.tankEnemy.scale.setTo(0.5, 0.5);
-	this.tankEnemy.angle = angle;
+	game.physics.arcade.enable(this.tankEnemy);		
+	this.tankEnemy.body.immovable = true;
+	this.tankEnemy.body.moves = true;
+	this.tankEnemy.body.collideWorldBounds = true;
 }

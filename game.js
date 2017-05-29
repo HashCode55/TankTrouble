@@ -29,12 +29,20 @@ io.on('connection', function(socket){
 		tankDisconnected(socket);
 	});
 
+	// check when the bullet is received 
+	socket.on('bullet', function(data){
+		bulletFired(data, socket);
+	});
+
 	// this is a test function 
 	socket.on('test', function(){
 		console.log('Test worked');	
-	});	
+	});		
 });
 
+function bulletFired (data, socket) {
+	socket.broadcast.emit('bullet', {x: data.x, y: data.y, velx: data.velx, vely: data.vely})
+}
 function updateTanks (data, socket) {
 	var toUpdate = findTank(socket.id);
 
@@ -50,7 +58,7 @@ function updateTanks (data, socket) {
 	toUpdate.setAngle(data.angle);
 	// broadcast the updated location 
 	socket.broadcast.emit('update location', {id: toUpdate.id, x: toUpdate.getX(), 
-		y: toUpdate.getY(), angle: toUpdate.getAngle()});
+		y: toUpdate.getY(), velx: data.velx, vely: data.vely ,angle: toUpdate.getAngle(), rot: data.rot});
 	// console.log(toUpdate.x + " " + toUpdate.y);
 }
 
